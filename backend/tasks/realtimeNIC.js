@@ -222,6 +222,9 @@ app.use(express.json({ limit: "10mb" })); // for image data
 //     res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
 // });
 
+app.get('/', async(req, res) => {
+    res.status(200).send("BACKEND KI API");
+})
 
 
 const saveImageToDisk = (base64Data) => {
