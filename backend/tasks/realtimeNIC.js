@@ -206,12 +206,46 @@ const cors = require("cors");
 const Tesseract = require("tesseract.js");
 const fs = require("fs");
 const path = require("path");
+const { IncomingForm } = require('formidable'); 
 
 const app = express();
 const PORT = 2701;
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" })); // for image data
+
+
+module.exports = async (req, res) => {
+  if (req.method === 'POST' && req.url === '/api/nic-scan') {
+    // Handle OCR
+    try {
+      const { image } = req.body;
+      if (!image) return res.status(400).json({ error: 'Image not provided' });
+
+      const result = await Tesseract.recognize(image, 'eng');
+      res.json({ text: result.data.text });
+    } catch (error) {
+      console.error('OCR Error:', error);
+      res.status(500).json({ error: 'Failed to process NIC' });
+    }
+  } else if (req.method === 'POST' && req.url === '/api/nic-video') {
+    // Handle video upload using Formidable
+    const form = new IncomingForm();
+    form.uploadDir = path.join(__dirname, 'uploads'); // For serverless, this should be cloud storage
+
+    form.parse(req, (err, fields, files) => {
+      if (err) return res.status(500).json({ error: 'Error uploading file' });
+      console.log('Files:', files);
+
+      // You should use cloud storage for saving the file here.
+      const videoPath = files.video[0].path; // Assuming video file is uploaded here
+      res.json({ message: 'Video uploaded successfully', path: videoPath });
+    });
+  } else {
+    // Return 404 for other requests
+    res.status(404).json({ error: 'Not found' });
+  }
+};
 
 
 // Serve the static files from the React app
@@ -222,66 +256,66 @@ app.use(express.json({ limit: "10mb" })); // for image data
 //     res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
 // });
 
-app.get('/', async(req, res) => {
-    res.status(200).send("BACKEND KI API");
-})
+// app.get('/', async(req, res) => {
+//     res.status(200).send("BACKEND KI API");
+// })
 
 
-const saveImageToDisk = (base64Data) => {
-  const matches = base64Data.match(/^data:(.+);base64,(.+)$/);
-  if (!matches) {
-    throw new Error("Invalid base64 image data");
-  }
+// const saveImageToDisk = (base64Data) => {
+//   const matches = base64Data.match(/^data:(.+);base64,(.+)$/);
+//   if (!matches) {
+//     throw new Error("Invalid base64 image data");
+//   }
 
-  const buffer = Buffer.from(matches[2], 'base64');
-  const fileName = `nic-${Date.now()}.jpg`;
-  const filePath = path.join(__dirname, "OCRImages", fileName);
+//   const buffer = Buffer.from(matches[2], 'base64');
+//   const fileName = `nic-${Date.now()}.jpg`;
+//   const filePath = path.join(__dirname, "OCRImages", fileName);
 
-  fs.writeFileSync(filePath, buffer);
-  return fileName;
-};
+//   fs.writeFileSync(filePath, buffer);
+//   return fileName;
+// };
 
-// ========== ROUTE: OCR Image Scan ========== //
-app.post("/api/nic-scan", async (req, res) => {
-  try {
-    const { image } = req.body;
-    const fileName = saveImageToDisk(image);
-    console.log("Image saved as:", fileName)
+// // ========== ROUTE: OCR Image Scan ========== //
+// app.post("/api/nic-scan", async (req, res) => {
+//   try {
+//     const { image } = req.body;
+//     const fileName = saveImageToDisk(image);
+//     console.log("Image saved as:", fileName)
 
-    if (!image) return res.status(400).json({ error: "Image not provided" });
+//     if (!image) return res.status(400).json({ error: "Image not provided" });
 
-    const result = await Tesseract.recognize(image, "eng");
-    res.json({ text: result.data.text });
-  } catch (error) {
-    console.error("OCR Error:", error);
-    res.status(500).json({ error: "Failed to process NIC" });
-  }
-});
+//     const result = await Tesseract.recognize(image, "eng");
+//     res.json({ text: result.data.text });
+//   } catch (error) {
+//     console.error("OCR Error:", error);
+//     res.status(500).json({ error: "Failed to process NIC" });
+//   }
+// });
 
-// ========== ROUTE: Video Upload ========== //
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, "uploads");
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const timestamp = Date.now();
-    const filename = `nic-session-${timestamp}.webm`;
-    cb(null, filename);
-  },
-});
+// // ========== ROUTE: Video Upload ========== //
+// const storage = multer.diskStorage({
+//   destination: function (req, file, cb) {
+//     const uploadDir = path.join(__dirname, "uploads");
+//     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+//     cb(null, uploadDir);
+//   },
+//   filename: function (req, file, cb) {
+//     const timestamp = Date.now();
+//     const filename = `nic-session-${timestamp}.webm`;
+//     cb(null, filename);
+//   },
+// });
 
-const upload = multer({ storage });
+// const upload = multer({ storage });
 
-app.post("/api/nic-video", upload.single("video"), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: "No video uploaded" });
-  }
+// app.post("/api/nic-video", upload.single("video"), (req, res) => {
+//   if (!req.file) {
+//     return res.status(400).json({ error: "No video uploaded" });
+//   }
 
-  console.log("Video uploaded to:", req.file.path);
-  res.json({ message: "Video uploaded successfully", path: req.file.path });
-});
+//   console.log("Video uploaded to:", req.file.path);
+//   res.json({ message: "Video uploaded successfully", path: req.file.path });
+// });
 
 // ========== Start Server ========== //
 app.listen(PORT, () => {

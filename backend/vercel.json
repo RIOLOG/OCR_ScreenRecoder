@@ -1,9 +1,9 @@
 {
     "version":2,
     "builds": [
-        { "src": "./tasks/realtimeNIC.js", "use": "@vercel/node"}
+        { "src": "tasks/realtimeNIC.js", "use": "@vercel/node"}
     ],
     "routes": [
-        { "src": "/(.*)", "dest": "./tasks/realtimeNIC.js"}
+        { "src": "/(.*)", "dest": "tasks/realtimeNIC.js"}
     ]
 }
